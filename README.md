@@ -1,4 +1,4 @@
-# 🧱 GlassWall Sandbox
+# GlassWall Sandbox
 
 > A lightweight, local-first agentic execution sandbox. Designed specifically for AI agents to run untrusted terminal commands safely, audit workspace mutations, prevent data exfiltration, and reflect on command execution.
 

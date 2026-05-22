@@ -1,5 +1,10 @@
 # GlassWall Sandbox
 
+![Go](https://img.shields.io/badge/Go-00ADD8?style=flat&logo=go&logoColor=white)
+![macOS](https://img.shields.io/badge/macOS-000000?style=flat&logo=apple&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-07405E?style=flat&logo=sqlite&logoColor=white)
+
 > A lightweight, local-first agentic execution sandbox. Designed specifically for AI agents to run untrusted terminal commands safely, audit workspace mutations, prevent data exfiltration, and reflect on command execution.
 
 ---

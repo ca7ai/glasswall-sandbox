@@ -1,0 +1,16 @@
+# Compiled binaries
+/glasswall
+
+# SQLite databases
+*.db
+*.db-journal
+*.db-wal
+
+# OS generated files
+.DS_Store
+
+# Go workspaces & tools
+/vendor/
+/bin/
+.idea/
+.vscode/

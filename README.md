@@ -5,6 +5,9 @@
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white)
 ![SQLite](https://img.shields.io/badge/SQLite-07405E?style=flat&logo=sqlite&logoColor=white)
 
+<img width="500" height="500" alt="banner" src="https://github.com/user-attachments/assets/811cd9c4-266b-477b-880f-f345a08ab928" />
+
+
 > A lightweight, local first agentic execution sandbox. Designed specifically for AI agents to run untrusted terminal commands safely, audit workspace mutations, prevent data exfiltration, and reflect on command execution.
 
 ---

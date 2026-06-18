@@ -75,7 +75,9 @@ func executeRun(cmd *cobra.Command, args []string) {
 	}
 
 	startTime := time.Now()
-	res, err := driver.Run(context.Background(), cmdStr, opts)
+	ctx, cancel := context.WithTimeout(context.Background(), opts.Timeout)
+	defer cancel()
+	res, err := driver.Run(ctx, cmdStr, opts)
 	endTime := time.Now()
 
 	if err != nil {
@@ -91,11 +93,20 @@ func executeRun(cmd *cobra.Command, args []string) {
 	}
 
 	// 7. Save metrics to SQLite
+	caller := os.Getenv("USER")
+	if caller == "" {
+		caller = os.Getenv("USERNAME") // Windows fallback
+	}
+	if caller == "" {
+		caller = "unknown"
+	}
+
 	record := &db.RunRecord{
 		ID:        runID,
 		Command:   cmdStr,
 		Dir:       cwd,
 		Driver:    DriverName,
+		Caller:    caller,
 		StartedAt: startTime,
 		EndedAt:   endTime,
 		ExitCode:  res.ExitCode,

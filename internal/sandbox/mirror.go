@@ -23,7 +23,7 @@ var excludedPaths = map[string]bool{
 // CreateMirror recursively copies sourceDir to a temp dir /private/tmp/glasswall-runs/<runID>.
 func CreateMirror(sourceDir string, runID string) (string, error) {
 	tempDir := filepath.Join("/private/tmp", "glasswall-runs", runID)
-	if err := os.MkdirAll(tempDir, 0755); err != nil {
+	if err := os.MkdirAll(tempDir, 0700); err != nil {
 		return "", err
 	}
 

@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
+	"unicode"
 
 	_ "modernc.org/sqlite"
 )
@@ -26,6 +28,7 @@ type RunRecord struct {
 	Command   string      `json:"command"`
 	Dir       string      `json:"dir"`
 	Driver    string      `json:"driver"`
+	Caller    string      `json:"caller"`
 	StartedAt time.Time   `json:"started_at"`
 	EndedAt   time.Time   `json:"ended_at"`
 	ExitCode  int         `json:"exit_code"`
@@ -42,17 +45,18 @@ func InitDB(dbPath string) (*DB, error) {
 			return nil, fmt.Errorf("failed to get user home dir: %w", err)
 		}
 		appDir := filepath.Join(homeDir, ".glasswall")
-		if err := os.MkdirAll(appDir, 0755); err != nil {
+		if err := os.MkdirAll(appDir, 0700); err != nil {
 			return nil, fmt.Errorf("failed to create config dir: %w", err)
 		}
 		dbPath = filepath.Join(appDir, "runs.db")
 	} else {
 		// Ensure parent directory of custom dbPath exists
-		if err := os.MkdirAll(filepath.Dir(dbPath), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(dbPath), 0700); err != nil {
 			return nil, fmt.Errorf("failed to create database parent directory: %w", err)
 		}
 	}
 
+	// Create or open database with restricted permissions
 	conn, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
@@ -62,6 +66,12 @@ func InitDB(dbPath string) (*DB, error) {
 	if err := db.migrate(); err != nil {
 		conn.Close()
 		return nil, fmt.Errorf("failed to migrate database: %w", err)
+	}
+
+	// Set file permissions to 0600 (owner read/write only) after migration creates the file
+	if err := os.Chmod(dbPath, 0600); err != nil {
+		conn.Close()
+		return nil, fmt.Errorf("failed to set database permissions: %w", err)
 	}
 
 	return db, nil
@@ -78,6 +88,7 @@ func (db *DB) migrate() error {
 		command TEXT NOT NULL,
 		dir TEXT NOT NULL,
 		driver TEXT NOT NULL,
+		caller TEXT NOT NULL DEFAULT '',
 		started_at DATETIME NOT NULL,
 		ended_at DATETIME NOT NULL,
 		exit_code INTEGER NOT NULL,
@@ -98,9 +109,13 @@ func (db *DB) SaveRun(record *RunRecord) error {
 		return fmt.Errorf("failed to marshal file changes: %w", err)
 	}
 
+	// Sanitize stdout and stderr to remove control characters
+	sanitizedStdout := sanitizeOutput(record.Stdout)
+	sanitizedStderr := sanitizeOutput(record.Stderr)
+
 	query := `
-	INSERT INTO runs (id, command, dir, driver, started_at, ended_at, exit_code, stdout, stderr, file_changes)
-	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	INSERT INTO runs (id, command, dir, driver, caller, started_at, ended_at, exit_code, stdout, stderr, file_changes)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	_, err = db.conn.Exec(
 		query,
@@ -108,11 +123,12 @@ func (db *DB) SaveRun(record *RunRecord) error {
 		record.Command,
 		record.Dir,
 		record.Driver,
+		record.Caller,
 		record.StartedAt,
 		record.EndedAt,
 		record.ExitCode,
-		record.Stdout,
-		record.Stderr,
+		sanitizedStdout,
+		sanitizedStderr,
 		string(changesJSON),
 	)
 	if err != nil {
@@ -121,10 +137,23 @@ func (db *DB) SaveRun(record *RunRecord) error {
 	return nil
 }
 
+// sanitizeOutput removes control characters except newlines and tabs
+func sanitizeOutput(s string) string {
+	return strings.Map(func(r rune) rune {
+		if r == '\n' || r == '\t' {
+			return r
+		}
+		if unicode.IsControl(r) {
+			return -1 // remove
+		}
+		return r
+	}, s)
+}
+
 // GetRuns fetches all historical runs.
 func (db *DB) GetRuns() ([]*RunRecord, error) {
 	query := `
-	SELECT id, command, dir, driver, started_at, ended_at, exit_code, stdout, stderr, file_changes
+	SELECT id, command, dir, driver, caller, started_at, ended_at, exit_code, stdout, stderr, file_changes
 	FROM runs
 	ORDER BY started_at DESC
 	`
@@ -145,6 +174,7 @@ func (db *DB) GetRuns() ([]*RunRecord, error) {
 			&record.Command,
 			&record.Dir,
 			&record.Driver,
+			&record.Caller,
 			&startedAtStr,
 			&endedAtStr,
 			&record.ExitCode,
@@ -185,7 +215,7 @@ func (db *DB) GetRuns() ([]*RunRecord, error) {
 // GetRunByID fetches a single run by ID.
 func (db *DB) GetRunByID(id string) (*RunRecord, error) {
 	query := `
-	SELECT id, command, dir, driver, started_at, ended_at, exit_code, stdout, stderr, file_changes
+	SELECT id, command, dir, driver, caller, started_at, ended_at, exit_code, stdout, stderr, file_changes
 	FROM runs
 	WHERE id = ?
 	`
@@ -200,6 +230,7 @@ func (db *DB) GetRunByID(id string) (*RunRecord, error) {
 		&record.Command,
 		&record.Dir,
 		&record.Driver,
+		&record.Caller,
 		&startedAtStr,
 		&endedAtStr,
 		&record.ExitCode,

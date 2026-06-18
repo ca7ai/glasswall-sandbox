@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 type MacSandboxDriver struct{}
@@ -61,21 +62,33 @@ func (d *MacSandboxDriver) generateProfile(workspacePath string, allowNetwork bo
 		absWorkspace = workspacePath
 	}
 
+	// Escape the workspace path for Seatbelt DSL to prevent injection
+	escapedWorkspace := escapeSeatbeltPath(absWorkspace)
+
 	// We start with "allow default" (allows read, memory, threads, IPC, etc. to avoid breaking standard environments).
 	// Then we deny file-write* globally.
-	// Then we whitelist file-write* for the mirrored workspace and macOS system temp directories.
+	// Then we whitelist file-write* for the mirrored workspace only.
 	profile := fmt.Sprintf(`(version 1)
 (allow default)
 (deny file-write* (subpath "/"))
 (allow file-write* (subpath "%s"))
-(allow file-write* (subpath "/private/tmp"))
-(allow file-write* (subpath "/private/var"))
-(allow file-write* (subpath "/var/folders"))
-`, absWorkspace)
+`, escapedWorkspace)
 
 	if !allowNetwork {
 		profile += "(deny network-outbound)\n"
 	}
 
 	return profile
+}
+
+// escapeSeatbeltPath escapes special characters in paths that could break Seatbelt DSL syntax
+func escapeSeatbeltPath(path string) string {
+	// Seatbelt uses Scheme-like syntax where quotes, parens, and backslashes are special
+	replacer := strings.NewReplacer(
+		`\`, `\\`,
+		`"`, `\"`,
+		`(`, `\(`,
+		`)`, `\)`,
+	)
+	return replacer.Replace(path)
 }

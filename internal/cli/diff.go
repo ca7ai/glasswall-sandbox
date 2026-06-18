@@ -58,19 +58,19 @@ func executeDiff(cmd *cobra.Command, args []string) {
 	if len(record.Changes.Created) > 0 {
 		fmt.Println("\n**Created:**")
 		for _, file := range record.Changes.Created {
-			fmt.Printf("- `+` %s\n", file)
+			fmt.Printf("- `+` %s\n", sanitizePath(file))
 		}
 	}
 	if len(record.Changes.Modified) > 0 {
 		fmt.Println("\n**Modified:**")
 		for _, file := range record.Changes.Modified {
-			fmt.Printf("- `~` %s\n", file)
+			fmt.Printf("- `~` %s\n", sanitizePath(file))
 		}
 	}
 	if len(record.Changes.Deleted) > 0 {
 		fmt.Println("\n**Deleted:**")
 		for _, file := range record.Changes.Deleted {
-			fmt.Printf("- `-` %s\n", file)
+			fmt.Printf("- `-` %s\n", sanitizePath(file))
 		}
 	}
 }

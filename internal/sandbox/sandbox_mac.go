@@ -25,9 +25,17 @@ func (d *MacSandboxDriver) Run(ctx context.Context, cmdStr string, opts RunOptio
 	runCmd := exec.CommandContext(ctx, "sandbox-exec", "-p", profile, "sh", "-c", cmdStr)
 	runCmd.Dir = opts.Dir
 
-	// Setup environment variables if provided
+	// Setup minimal environment to prevent leaking sensitive vars
+	minimalEnv := []string{
+		"PATH=/usr/bin:/bin:/usr/sbin:/sbin",
+		"HOME=" + os.Getenv("HOME"),
+		"TERM=" + os.Getenv("TERM"),
+		"TMPDIR=" + opts.Dir,
+	}
 	if len(opts.Env) > 0 {
-		runCmd.Env = append(os.Environ(), opts.Env...)
+		runCmd.Env = append(minimalEnv, opts.Env...)
+	} else {
+		runCmd.Env = minimalEnv
 	}
 
 	var stdoutBuf, stderrBuf bytes.Buffer
@@ -65,11 +73,16 @@ func (d *MacSandboxDriver) generateProfile(workspacePath string, allowNetwork bo
 	// Escape the workspace path for Seatbelt DSL to prevent injection
 	escapedWorkspace := escapeSeatbeltPath(absWorkspace)
 
-	// We start with "allow default" (allows read, memory, threads, IPC, etc. to avoid breaking standard environments).
-	// Then we deny file-write* globally.
-	// Then we whitelist file-write* for the mirrored workspace only.
+	// Start with deny default for maximum isolation
+	// Explicitly allow only necessary operations
 	profile := fmt.Sprintf(`(version 1)
-(allow default)
+(deny default)
+(allow process*)
+(allow sysctl-read)
+(allow mach-lookup)
+(allow ipc-posix*)
+(allow file-read* (subpath "/"))
+(allow file-read-metadata)
 (deny file-write* (subpath "/"))
 (allow file-write* (subpath "%s"))
 `, escapedWorkspace)

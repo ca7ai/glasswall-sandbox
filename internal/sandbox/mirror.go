@@ -71,6 +71,16 @@ func CreateMirror(sourceDir string, runID string) (string, error) {
 }
 
 func copyFile(src, dst string, info os.FileInfo) error {
+	// Check if source is a symlink - don't follow
+	linkInfo, err := os.Lstat(src)
+	if err != nil {
+		return err
+	}
+	if linkInfo.Mode()&os.ModeSymlink != 0 {
+		// Skip symlinks to prevent escaping sandbox
+		return nil
+	}
+
 	srcFile, err := os.Open(src)
 	if err != nil {
 		return err
@@ -121,6 +131,11 @@ func DiffMirror(sourceDir string, mirrorDir string) (db.FileChanges, error) {
 			return nil
 		}
 
+		// Skip symlinks
+		if info.Mode()&os.ModeSymlink != 0 {
+			return nil
+		}
+
 		rel, err := filepath.Rel(sourceDir, path)
 		if err != nil {
 			return err
@@ -149,6 +164,11 @@ func DiffMirror(sourceDir string, mirrorDir string) (db.FileChanges, error) {
 			return err
 		}
 		if info.IsDir() {
+			return nil
+		}
+
+		// Skip symlinks
+		if info.Mode()&os.ModeSymlink != 0 {
 			return nil
 		}
 

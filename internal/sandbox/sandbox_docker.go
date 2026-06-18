@@ -35,6 +35,13 @@ func (d *DockerSandboxDriver) Run(ctx context.Context, cmdStr string, opts RunOp
 	args := []string{
 		"run",
 		"--rm",
+		"--user", "1000:1000",                       // Run as non-root
+		"--cap-drop", "ALL",                          // Drop all capabilities
+		"--security-opt", "no-new-privileges",        // Prevent privilege escalation
+		"--read-only",                                // Read-only root filesystem
+		"--tmpfs", "/tmp:rw,noexec,nosuid,size=100m", // Writable /tmp with security options
+		"--memory", "512m",                           // Memory limit
+		"--pids-limit", "100",                        // Process limit
 		"-v", fmt.Sprintf("%s:/workspace", absWorkspace),
 		"-w", "/workspace",
 	}

@@ -50,6 +50,16 @@ func InitDB(dbPath string) (*DB, error) {
 		}
 		dbPath = filepath.Join(appDir, "runs.db")
 	} else {
+		// Validate custom dbPath to prevent audit logging bypass
+		if dbPath == "/dev/null" || dbPath == os.DevNull {
+			return nil, fmt.Errorf("invalid database path: audit logging cannot be disabled")
+		}
+		absPath, err := filepath.Abs(dbPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve database path: %w", err)
+		}
+		dbPath = absPath
+
 		// Ensure parent directory of custom dbPath exists
 		if err := os.MkdirAll(filepath.Dir(dbPath), 0700); err != nil {
 			return nil, fmt.Errorf("failed to create database parent directory: %w", err)

@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/ca7ai/glasswall/internal/db"
 	"github.com/ca7ai/glasswall/internal/sandbox"
@@ -30,6 +31,16 @@ func generateRunID() string {
 	_, _ = rand.Read(b)
 	timestamp := time.Now().Format("20060102-150405")
 	return fmt.Sprintf("run-%s-%x", timestamp, b)
+}
+
+// sanitizePath removes ANSI escape sequences and control characters from file paths
+func sanitizePath(path string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) {
+			return -1 // remove
+		}
+		return r
+	}, path)
 }
 
 func executeRun(cmd *cobra.Command, args []string) {
@@ -169,19 +180,19 @@ func printOutput(record *db.RunRecord, exitCode int) {
 		if len(record.Changes.Created) > 0 {
 			fmt.Println("\n**Created:**")
 			for _, file := range record.Changes.Created {
-				fmt.Printf("- `+` %s\n", file)
+				fmt.Printf("- `+` %s\n", sanitizePath(file))
 			}
 		}
 		if len(record.Changes.Modified) > 0 {
 			fmt.Println("\n**Modified:**")
 			for _, file := range record.Changes.Modified {
-				fmt.Printf("- `~` %s\n", file)
+				fmt.Printf("- `~` %s\n", sanitizePath(file))
 			}
 		}
 		if len(record.Changes.Deleted) > 0 {
 			fmt.Println("\n**Deleted:**")
 			for _, file := range record.Changes.Deleted {
-				fmt.Printf("- `-` %s\n", file)
+				fmt.Printf("- `-` %s\n", sanitizePath(file))
 			}
 		}
 	}
